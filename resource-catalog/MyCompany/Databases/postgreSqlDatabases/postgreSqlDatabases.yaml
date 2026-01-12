@@ -1,0 +1,37 @@
+namespace: MyCompany.Databases
+types:
+  postgreSqlDatabases:  
+    description: |
+      Welcome to MyCompany. Here's the standard type for provisioning a PostgreSQL DB.
+    apiVersions:
+      '2026-01-12':
+        schema: 
+          type: object
+          properties:
+            environment:
+              type: string
+              description: "(Required) The Radius Environment ID. Typically set by the rad CLI. Typically value should be `environment`."
+            application:
+              type: string
+              description: "(Optional) The Radius Application ID. `myApplication.id` for example."
+            database:
+              type: string
+              description: The name of the database.
+              readOnly: true
+            host:
+              type: string
+              description: The host name used to connect to the database.
+              readOnly: true
+            port:
+              type: string
+              description: The port number used to connect to the database.
+              readOnly: true
+            username:
+              type: string
+              description: The username for connecting to the database.
+              readOnly: true
+            password:
+              type: string
+              description: The password for connecting to the database.
+              # readOnly: true
+          required: [environment]
