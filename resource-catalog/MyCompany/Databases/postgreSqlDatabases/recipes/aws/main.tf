@@ -30,6 +30,12 @@ variable "vpc_id" {
   type        = string
 }
 
+variable "secret_sync_service_account" {
+  description = "ServiceAccount used by the sync job to access Secrets Manager via pod identity"
+  type        = string
+  default     = "default"
+}
+
 data "aws_subnets" "this" {
   filter {
     name   = "vpc-id"
@@ -133,8 +139,13 @@ resource "kubernetes_manifest" "spc_aws_secrets" {
       provider = "aws"
       parameters = {
         objects        = <<-EOT
-          - objectName: ${local.secret_key}
+          - objectName: "${aws_secretsmanager_secret.db.name}"
             objectType: "secretsmanager"
+            jmesPath:
+              - path: username
+                objectAlias: username
+              - path: password
+                objectAlias: password
         EOT
         usePodIdentity = "true"
       }
@@ -144,12 +155,68 @@ resource "kubernetes_manifest" "spc_aws_secrets" {
           type       = "Opaque"
           data = [
             {
-              objectName = local.secret_key
-              key        = local.secret_key
+              objectName = "username"
+              key        = "username"
+            },
+            {
+              objectName = "password"
+              key        = "password"
             }
           ]
         }
       ]
+    }
+  }
+}
+
+resource "kubernetes_manifest" "spc_jump_pod" {
+  depends_on = [
+    aws_secretsmanager_secret_version.db,
+    kubernetes_manifest.spc_aws_secrets
+  ]
+
+  manifest = {
+    apiVersion = "batch/v1"
+    kind       = "Job"
+    metadata = {
+      name      = "${local.secret_name}-sync"
+      namespace = local.secret_namespace
+    }
+    spec = {
+      backoffLimit            = 0
+      ttlSecondsAfterFinished = 60
+      template = {
+        spec = {
+          serviceAccountName = var.secret_sync_service_account
+          restartPolicy      = "Never"
+          containers = [
+            {
+              name    = "sync"
+              image   = "busybox:1.36"
+              command = ["sh", "-c", "sleep 5"]
+              volumeMounts = [
+                {
+                  name      = "secrets-store"
+                  mountPath = "/mnt/secrets-store"
+                  readOnly  = true
+                }
+              ]
+            }
+          ]
+          volumes = [
+            {
+              name = "secrets-store"
+              csi = {
+                driver   = "secrets-store.csi.k8s.io"
+                readOnly = true
+                volumeAttributes = {
+                  secretProviderClass = local.secret_name
+                }
+              }
+            }
+          ]
+        }
+      }
     }
   }
 }
@@ -163,7 +230,8 @@ output "result" {
       username = local.db_username
       secret_namespace = local.secret_namespace
       secret_name = local.secret_name
-      secret_key = local.secret_key
+      secret_username_key = "username"
+      secret_password_key = "password"
     }
   }
 }

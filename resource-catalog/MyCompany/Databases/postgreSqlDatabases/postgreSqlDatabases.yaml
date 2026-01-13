@@ -42,8 +42,12 @@ types:
               type: string
               description: The Kubernetes secret namespace.
               readOnly: true
-            secret_key:
+            secret_username_key:
               type: string
-              description: The Kubernetes secret key.
+              description: The Kubernetes secret key for the username.
+              readOnly: true
+            secret_password_key:
+              type: string
+              description: The Kubernetes secret key for the password.
               readOnly: true
           required: [environment]

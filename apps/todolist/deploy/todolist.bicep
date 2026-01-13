@@ -29,7 +29,7 @@ resource frontend 'radius:Applications.Core/containers@2023-10-01-preview' = {
       }
       env: {
         CONNECTION_POSTGRESQL_PASSWORD: {
-          value: base64ToString(secret.data[postgresql.properties.secret_key])
+          value: base64ToString(secret.data[postgresql.properties.secret_password_key])
         }
       }
     }
