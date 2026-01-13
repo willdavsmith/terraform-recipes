@@ -161,9 +161,9 @@ output "result" {
       host     = aws_db_instance.db.address
       port     = aws_db_instance.db.port
       username = local.db_username
-      k8s_secret_namespace = local.secret_namespace
-      k8s_secret_name = local.secret_name
-      k8s_secret_key = local.secret_key
+      secret_namespace = local.secret_namespace
+      secret_name = local.secret_name
+      secret_key = local.secret_key
     }
   }
 }
