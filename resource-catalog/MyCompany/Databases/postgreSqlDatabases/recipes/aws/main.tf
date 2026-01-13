@@ -126,7 +126,8 @@ resource "kubernetes_manifest" "spc_aws_secrets" {
     apiVersion = "secrets-store.csi.x-k8s.io/v1"
     kind       = "SecretProviderClass"
     metadata = {
-      name = "nginx-pod-identity-deployment-aws-secrets"
+      name = local.secret_name
+      namespace = local.secret_namespace
     }
     spec = {
       provider = "aws"
