@@ -1,6 +1,6 @@
 {
 	"extensions": {
 		"radius": "br:biceptypes.azurecr.io/radius:latest",
-    "mycompany_databases": "my-company-data.tgz"
+    "mycompany_databases": "mycompany_databases.tgz"
   }
 }

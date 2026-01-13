@@ -9,6 +9,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.26"
+    }
   }
 }
 
@@ -50,6 +54,10 @@ locals {
   unique_name = "mycompany-pg-${random_id.resource.hex}"
   db_name = "postgres"
   db_username = "adminuser"
+
+  secret_namespace = "default"
+  secret_name = "secret-${random_id.resource.hex}"
+  secret_key = "secret_key_${random_id.resource.hex}"
 }
 
 
@@ -61,8 +69,6 @@ resource "aws_db_subnet_group" "subnet_group" {
     owner = "willsmith"
   }
 }
-
-
 
 // ===== RDS ===== //
 
@@ -81,7 +87,7 @@ resource "aws_db_instance" "db" {
   username = local.db_username
 
   // Write-only password. Must update password_wo_version when password is updated.
-  password_wo         = var.context.resource.properties.password
+  password_wo         = ephemeral.random_password.db_password.result
   password_wo_version = 1
 
   publicly_accessible = false
@@ -91,11 +97,11 @@ resource "aws_db_instance" "db" {
 
 // ===== SECRETS MANAGER ===== //
 
-# ephemeral "random_password" "db_password" {
-#   length           = 20
-#   special          = true
-#   override_special = "!#$%&*()-_=+[]{}<>:?"
-# }
+ephemeral "random_password" "db_password" {
+  length           = 20
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
 
 resource "aws_secretsmanager_secret" "db" {
   name = "${local.unique_name}-credentials"
@@ -109,10 +115,42 @@ resource "aws_secretsmanager_secret_version" "db" {
 
   secret_string_wo = jsonencode({
     username = local.db_username
-    password = var.context.resource.properties.password
+    password = ephemeral.random_password.db_password.result
   })
 
   secret_string_wo_version = 1
+}
+
+resource "kubernetes_manifest" "spc_aws_secrets" {
+  manifest = {
+    apiVersion = "secrets-store.csi.x-k8s.io/v1"
+    kind       = "SecretProviderClass"
+    metadata = {
+      name = "nginx-pod-identity-deployment-aws-secrets"
+    }
+    spec = {
+      provider = "aws"
+      parameters = {
+        objects        = <<-EOT
+          - objectName: ${local.secret_key}
+            objectType: "secretsmanager"
+        EOT
+        usePodIdentity = "true"
+      }
+      secretObjects = [
+        {
+          secretName = local.secret_name
+          type       = "Opaque"
+          data = [
+            {
+              objectName = local.secret_key
+              key        = local.secret_key
+            }
+          ]
+        }
+      ]
+    }
+  }
 }
 
 output "result" {
@@ -122,6 +160,9 @@ output "result" {
       host     = aws_db_instance.db.address
       port     = aws_db_instance.db.port
       username = local.db_username
+      k8s_secret_namespace = local.secret_namespace
+      k8s_secret_name = local.secret_name
+      k8s_secret_key = local.secret_key
     }
   }
 }
