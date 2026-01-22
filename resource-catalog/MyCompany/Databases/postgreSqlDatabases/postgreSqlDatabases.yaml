@@ -30,24 +30,8 @@ types:
               type: string
               description: The username for connecting to the database.
               readOnly: true
-            # password:
-            #   type: string
-            #   description: The password for connecting to the database.
-            #   readOnly: true
-            secret_name:
+            password:
               type: string
-              description: The Kubernetes secret name.
-              readOnly: true
-            secret_namespace:
-              type: string
-              description: The Kubernetes secret namespace.
-              readOnly: true
-            secret_username_key:
-              type: string
-              description: The Kubernetes secret key for the username.
-              readOnly: true
-            secret_password_key:
-              type: string
-              description: The Kubernetes secret key for the password.
-              readOnly: true
+              description: The password for connecting to the database.
+              # readOnly: true
           required: [environment]

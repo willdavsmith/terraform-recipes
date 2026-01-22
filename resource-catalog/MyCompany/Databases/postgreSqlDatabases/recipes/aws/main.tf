@@ -9,10 +9,6 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.26"
-    }
   }
 }
 
@@ -28,12 +24,6 @@ variable "context" {
 variable "vpc_id" {
   description = "The AWS VPC ID"
   type        = string
-}
-
-variable "secret_sync_service_account" {
-  description = "ServiceAccount used by the sync job to access Secrets Manager via pod identity"
-  type        = string
-  default     = "default"
 }
 
 data "aws_subnets" "this" {
@@ -60,10 +50,6 @@ locals {
   unique_name = "mycompany-pg-${random_id.resource.hex}"
   db_name = "postgres"
   db_username = "adminuser"
-
-  secret_namespace = "default"
-  secret_name = "secret-${random_id.resource.hex}"
-  secret_key = "secret_key_${random_id.resource.hex}"
 }
 
 
@@ -75,6 +61,8 @@ resource "aws_db_subnet_group" "subnet_group" {
     owner = "willsmith"
   }
 }
+
+
 
 // ===== RDS ===== //
 
@@ -93,7 +81,7 @@ resource "aws_db_instance" "db" {
   username = local.db_username
 
   // Write-only password. Must update password_wo_version when password is updated.
-  password_wo         = ephemeral.random_password.db_password.result
+  password_wo         = var.context.resource.properties.password
   password_wo_version = 1
 
   publicly_accessible = false
@@ -103,11 +91,11 @@ resource "aws_db_instance" "db" {
 
 // ===== SECRETS MANAGER ===== //
 
-ephemeral "random_password" "db_password" {
-  length           = 20
-  special          = true
-  override_special = "!#$%&*()-_=+[]{}<>:?"
-}
+# ephemeral "random_password" "db_password" {
+#   length           = 20
+#   special          = true
+#   override_special = "!#$%&*()-_=+[]{}<>:?"
+# }
 
 resource "aws_secretsmanager_secret" "db" {
   name = "${local.unique_name}-credentials"
@@ -121,104 +109,10 @@ resource "aws_secretsmanager_secret_version" "db" {
 
   secret_string_wo = jsonencode({
     username = local.db_username
-    password = ephemeral.random_password.db_password.result
+    password = var.context.resource.properties.password
   })
 
   secret_string_wo_version = 1
-}
-
-resource "kubernetes_manifest" "spc_aws_secrets" {
-  manifest = {
-    apiVersion = "secrets-store.csi.x-k8s.io/v1"
-    kind       = "SecretProviderClass"
-    metadata = {
-      name = local.secret_name
-      namespace = local.secret_namespace
-    }
-    spec = {
-      provider = "aws"
-      parameters = {
-        objects        = <<-EOT
-          - objectName: "${aws_secretsmanager_secret.db.name}"
-            objectType: "secretsmanager"
-            jmesPath:
-              - path: username
-                objectAlias: username
-              - path: password
-                objectAlias: password
-        EOT
-        usePodIdentity = "true"
-      }
-      secretObjects = [
-        {
-          secretName = local.secret_name
-          type       = "Opaque"
-          data = [
-            {
-              objectName = "username"
-              key        = "username"
-            },
-            {
-              objectName = "password"
-              key        = "password"
-            }
-          ]
-        }
-      ]
-    }
-  }
-}
-
-resource "kubernetes_manifest" "spc_jump_pod" {
-  depends_on = [
-    aws_secretsmanager_secret_version.db,
-    kubernetes_manifest.spc_aws_secrets
-  ]
-
-  manifest = {
-    apiVersion = "batch/v1"
-    kind       = "Job"
-    metadata = {
-      name      = "${local.secret_name}-sync"
-      namespace = local.secret_namespace
-    }
-    spec = {
-      backoffLimit            = 0
-      ttlSecondsAfterFinished = 60
-      template = {
-        spec = {
-          serviceAccountName = var.secret_sync_service_account
-          restartPolicy      = "Never"
-          containers = [
-            {
-              name    = "sync"
-              image   = "busybox:1.36"
-              command = ["sh", "-c", "sleep 5"]
-              volumeMounts = [
-                {
-                  name      = "secrets-store"
-                  mountPath = "/mnt/secrets-store"
-                  readOnly  = true
-                }
-              ]
-            }
-          ]
-          volumes = [
-            {
-              name = "secrets-store"
-              csi = {
-                driver   = "secrets-store.csi.k8s.io"
-                readOnly = true
-                volumeAttributes = {
-                  secretProviderClass = local.secret_name
-                }
-              }
-            }
-          ]
-        }
-      }
-    }
-  }
 }
 
 output "result" {
@@ -228,10 +122,6 @@ output "result" {
       host     = aws_db_instance.db.address
       port     = aws_db_instance.db.port
       username = local.db_username
-      secret_namespace = local.secret_namespace
-      secret_name = local.secret_name
-      secret_username_key = "username"
-      secret_password_key = "password"
     }
   }
 }
