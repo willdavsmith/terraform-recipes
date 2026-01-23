@@ -5,10 +5,6 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.6"
-    }
   }
 }
 
@@ -87,32 +83,6 @@ resource "aws_db_instance" "db" {
   publicly_accessible = false
   skip_final_snapshot = true
   deletion_protection = false
-}
-
-// ===== SECRETS MANAGER ===== //
-
-# ephemeral "random_password" "db_password" {
-#   length           = 20
-#   special          = true
-#   override_special = "!#$%&*()-_=+[]{}<>:?"
-# }
-
-resource "aws_secretsmanager_secret" "db" {
-  name = "${local.unique_name}-credentials"
-  tags = {
-    owner = "willsmith"
-  }
-}
-
-resource "aws_secretsmanager_secret_version" "db" {
-  secret_id = aws_secretsmanager_secret.db.id
-
-  secret_string_wo = jsonencode({
-    username = local.db_username
-    password = var.context.resource.properties.password
-  })
-
-  secret_string_wo_version = 1
 }
 
 output "result" {

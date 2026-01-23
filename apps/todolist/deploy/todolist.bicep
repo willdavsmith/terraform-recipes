@@ -1,21 +1,26 @@
 extension radius
-extension mycompany_databases
+extension radiusComputeContainers
+extension radiusDataPostgreSqlDatabases
+extension radiusSecuritySecrets
 
 @description('The ID of your Radius Environment. Set automatically by the rad CLI.')
 param environment string
+
+@description('The username for the PostgreSQL database.')
+param username string
 
 @description('The password for the PostgreSQL database.')
 @secure()
 param password string
 
-resource todolist 'radius:Applications.Core/applications@2023-10-01-preview' = {
+resource todolist 'Radius.Core/applications@2025-08-01-preview'= {
   name: 'todolist'
   properties: {
     environment: environment
   }
 }
 
-resource frontend 'radius:Applications.Core/containers@2023-10-01-preview' = {
+resource frontend 'radiusComputeContainers:Radius.Compute/containers@2025-08-01-preview' = {
   name: 'frontend'
   properties: {
     application: todolist.id
@@ -35,11 +40,29 @@ resource frontend 'radius:Applications.Core/containers@2023-10-01-preview' = {
   }
 }
 
-resource postgresql 'mycompany_databases:MyCompany.Databases/postgreSqlDatabases@2026-01-12' = {
+resource postgresql 'radiusDataPostgreSqlDatabases:Radius.Data/postgreSqlDatabases@2025-08-01-preview' = {
   name: 'postgresql'
   properties: {
     environment: environment
     application: todolist.id
-    password: password
+    credentials: {
+      source: credentials.id
+    }
+  }
+}
+
+resource credentials 'radiusSecuritySecrets:Radius.Security/secrets@2025-08-01-preview' = {
+  name: 'credentials'
+  properties: {
+    environment: environment
+    application: todolist.id
+    data: {
+      username: {
+        value: username
+      }
+      password: {
+        value: password
+      }
+    }
   }
 }

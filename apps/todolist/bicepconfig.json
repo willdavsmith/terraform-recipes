@@ -1,6 +1,8 @@
 {
 	"extensions": {
-		"radius": "br:biceptypes.azurecr.io/radius:latest",
-    "mycompany_databases": "my-company-data.tgz"
+    "radius": "br:biceptypes.azurecr.io/radius:latest",
+    "radiusComputeContainers": "radiusComputeContainers.tgz",
+    "radiusDataPostgreSqlDatabases": "radiusDataPostgreSqlDatabases.tgz",
+    "radiusSecuritySecrets": "radiusSecuritySecrets.tgz"
   }
 }
