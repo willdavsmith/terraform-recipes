@@ -8,6 +8,13 @@ terraform {
   }
 }
 
+// -----RADIUS RECIPE CONTEXT----- //
+
+variable "context" {
+  description = "Radius-provided object containing information about the resource calling the Recipe."
+  type        = any
+}
+
 # Local values for processing secret data
 locals {
   secret_data = var.context.resource.properties.data

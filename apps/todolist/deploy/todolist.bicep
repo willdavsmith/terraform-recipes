@@ -13,7 +13,7 @@ param username string
 @secure()
 param password string
 
-resource todolist 'Radius.Core/applications@2025-08-01-preview'= {
+resource todolist 'Applications.Core/applications@2023-10-01-preview' = {
   name: 'todolist'
   properties: {
     environment: environment
@@ -24,11 +24,14 @@ resource frontend 'radiusComputeContainers:Radius.Compute/containers@2025-08-01-
   name: 'frontend'
   properties: {
     application: todolist.id
-    container: {
-      image: 'ghcr.io/radius-project/samples/demo:latest'
-      ports: {
-        web: {
-          containerPort: 3000
+    environment: environment
+    containers: {
+      frontend: {
+        image: 'ghcr.io/radius-project/samples/demo:latest'
+        ports: {
+          web: {
+            containerPort: 3000
+          }
         }
       }
     }
@@ -45,9 +48,7 @@ resource postgresql 'radiusDataPostgreSqlDatabases:Radius.Data/postgreSqlDatabas
   properties: {
     environment: environment
     application: todolist.id
-    credentials: {
-      source: credentials.id
-    }
+    secretName: credentials.name
   }
 }
 
