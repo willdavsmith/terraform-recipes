@@ -42,10 +42,20 @@ resource "random_id" "resource" {
   byte_length = 4
 }
 
+data "aws_secretsmanager_secret" "db" {
+  name = var.context.resource.properties.secretName
+}
+
+data "aws_secretsmanager_secret_version" "db" {
+  secret_id = data.aws_secretsmanager_secret.db.id
+}
+
 locals {
   unique_name = "mycompany-pg-${random_id.resource.hex}"
   db_name = "postgres"
-  db_username = "adminuser"
+  db_secret = jsondecode(data.aws_secretsmanager_secret_version.db.secret_string)
+  db_username = local.db_secret.username
+  db_password = local.db_secret.password
 }
 
 
@@ -77,7 +87,7 @@ resource "aws_db_instance" "db" {
   username = local.db_username
 
   // Write-only password. Must update password_wo_version when password is updated.
-  password_wo         = var.context.resource.properties.password
+  password_wo         = local.db_password
   password_wo_version = 1
 
   publicly_accessible = false

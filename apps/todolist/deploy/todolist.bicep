@@ -49,6 +49,7 @@ resource postgresql 'radiusDataPostgreSqlDatabases:Radius.Data/postgreSqlDatabas
     environment: environment
     application: todolist.id
     secretName: credentials.name
+    size: 'S'
   }
 }
 
