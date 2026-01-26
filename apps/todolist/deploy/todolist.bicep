@@ -33,6 +33,14 @@ resource frontend 'radiusComputeContainers:Radius.Compute/containers@2025-08-01-
             containerPort: 3000
           }
         }
+        env: {
+          PGSSLMODE: {
+            value: 'require'
+          }
+          NODE_TLS_REJECT_UNAUTHORIZED: {
+            value: '0'
+          }
+        }
       }
     }
     connections: {
